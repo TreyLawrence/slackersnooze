@@ -33,7 +33,7 @@ def with_vector(f):
 def redirect_nonwww():
     e = tldextract.extract(request.url)
     if e.subdomain != 'www' and e.domain == 'slackersnooze':
-        return redirect('www.slackersnooze.com', code=301)
+        return redirect('http://www.slackersnooze.com', code=301)
 
 @app.route("/")
 @app.route("/news")
