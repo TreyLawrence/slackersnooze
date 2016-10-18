@@ -39,7 +39,7 @@ def redirect_nonwww():
 @app.route("/news")
 @with_vector
 def feed(vector, seen):
-    dots = np.dot(vector, vectors().transpose())
+    dots = np.dot(vectors(), vector.transpose())
     start = int(request.args.get('p', '0'))*30
     scores = [ doc['score'] for doc in docs() ]
     results = [(doc, dot) for 
@@ -100,6 +100,7 @@ def hostname(url):
     return "{}.{}".format(e.domain, e.suffix)
 
 if __name__ == "__main__":
+    q.put(db.most_recent())
     p = Process(target=poll, args=(q,))
     p.start()
     app.run(host="0.0.0.0")

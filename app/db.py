@@ -85,17 +85,29 @@ def most_recent(cursor):
     cursor.execute("select id from docs order by time desc limit 500")
     print(cursor.query)
     ids = [ row['id'] for row in cursor.fetchall() ]
-    return get_docs(ids)
+    return docs_and_vectors(ids)
 
 @db
-def get_docs(cursor, ids):
+def docs_by_id(cursor, ids):
     cursor.execute("""select id, title, url, time, comments, hn_user, score
             from docs where id = any(%s)""", (ids, ))
     print(cursor.query)
-    docs = cursor.fetchall()
-    words = list(set([normalize_word(word) for doc in docs for word in doc['title'].split(" ")]))
+    return cursor.fetchall()
+
+def docs_and_vectors(ids):
+    docs = docs_by_id(ids)
+    titles = []
+    for doc in docs:
+        titles.append([normalize_word(word) for word in doc['title'].split(" ")])
+    vectors = title_vectors(titles)
+    return docs, vectors
+
+@db
+def title_vectors(cursor, titles):
+    words = list({word for title in titles for word in title})
     cursor.execute("""select wv.word, wv.vector, wc.count / (
-            select sum(count) from word_counts)::float as frequency
+                select sum(count) from word_counts
+            )::float as frequency
             from word_vectors wv
             join word_counts wc on wc.word = wv.word
             where wv.word = any(%s)""", (words, ))
@@ -103,20 +115,17 @@ def get_docs(cursor, ids):
             for row in cursor.fetchall() if row['vector']}
 
     vector_matrix = []
-    for doc in docs:
-        doc_vector = np.zeros(shape=(300,), dtype=float)
-        for word in doc['title'].split(" "):
-            word = normalize_word(word)
+    for title in titles:
+        title_vector = np.zeros(shape=(300,), dtype=float)
+        for word, count in list(Counter(title).items()):
             if word in word_vectors:
-                word_vector, frequency = word_vectors[word]
-                doc_vector += word_vector * frequency
-        vector_matrix.append(doc_vector)
-    vector_matrix = np.array(vector_matrix)
-    return docs, vector_matrix
+                vector, frequency = word_vectors[word]
+                title_vector += vector * (count * frequency)
+        vector_matrix.append(title_vector)
+    return np.array(vector_matrix)
 
-@db
-def get_doc(cursor, id):
-    docs, _ = get_docs([id])
+def doc_by_id(id):
+    docs = docs_by_id([id])
     return docs[0]
 
 @db
@@ -127,17 +136,18 @@ def vector_from_token(cursor, token):
         token = create_cookie()
         return token, v, seen
 
-    cursor.execute("""select doc_id
+    cursor.execute("""select d.id, d.title, d.url, d.time, d.comments, d.hn_user, d.score
             from clicks cl
             join cookies c on c.id = cl.cookie_id
+            join docs d on d.id = cl.doc_id
             where token = %s""", (token, ))
-    ids = [ row['doc_id'] for row in cursor.fetchall() ]
-    if len(ids) == 0:
+    docs = cursor.fetchall()
+    if len(docs) == 0:
         return token, v, seen
-
-    docs, vector_matrix = get_docs(ids)
-    v = np.sum(vector_matrix, axis=0)/len(docs)
-    seen = set(ids)
+    words = [normalize_word(word) for doc in docs 
+        for word in doc['title'].split(" ")]
+    v = title_vectors([words])
+    seen = set([doc['id'] for doc in docs])
     return token, v, seen
 
 @db
@@ -153,4 +163,4 @@ def click(cursor, doc_id, token):
             from cookies
             where token = %s""", (doc_id, token))
     print(cursor.query)
-    return get_doc(doc_id)
+    return doc_by_id(doc_id)

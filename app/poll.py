@@ -13,14 +13,13 @@ def get_doc(id):
     return requests.get(doc_url(id)).json()
 
 def poll(q):
-    q.put(db.most_recent())
     while True:
         top_posts = requests.get(top_stories_url).json()
         new_posts = set(db.new_doc_ids(top_posts))
         docs = [get_doc(id) for id in top_posts]
         db.upsert_docs(docs)
         db.count_words_from_titles([doc['title'] for doc in docs if doc['id'] in new_posts])
-        q.put(db.get_docs(top_posts))
+        q.put(db.docs_and_vectors(top_posts))
         print("\nsleeping..."+str(datetime.now()))
          
         time.sleep(5*60)
