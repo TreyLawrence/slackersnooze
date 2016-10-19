@@ -146,7 +146,7 @@ def vector_from_token(cursor, token):
         return token, v, seen
     words = [normalize_word(word) for doc in docs 
         for word in doc['title'].split(" ")]
-    v = title_vectors([words])
+    v = title_vectors([words]) / len(docs)
     seen = set([doc['id'] for doc in docs])
     return token, v, seen
 
