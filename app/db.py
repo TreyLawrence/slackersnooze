@@ -26,8 +26,9 @@ def db(f):
         return ret
     return decorator
 
-def normalize_word(word):
-    return word.lower().translate(str.maketrans("", "", string.punctuation+'’”‘“'))
+def title_words(titles):
+    return [ [ word.lower().translate(str.maketrans("", "", string.punctuation+'’”‘“'))
+            for word in title.split(" ") ] for title in titles ]
 
 @db
 def upsert_docs(cursor, docs):
@@ -66,11 +67,11 @@ def get_words(cursor, words):
 @db
 def count_words_from_titles(cursor, titles):
     if len(titles) == 0: return
-    words = Counter([normalize_word(word) for title in titles for word in title.split(" ")])
-    s = ",".join(["%s"]*len(words))
+    words = list(set([word for title in titles for word in title]))
+    s = ",".join(["(%s, 1)"]*len(words))
     cursor.execute("""insert into word_counts (word, count) values {0} on conflict 
-            (word) do update set count = word_counts.count + excluded.count""".format(s),
-            list(words.items()))
+            (word) do update set count = word_counts.count + 1""".format(s),
+            words)
     print(cursor.query)
 
 @db
@@ -96,31 +97,30 @@ def docs_by_id(cursor, ids):
 
 def docs_and_vectors(ids):
     docs = docs_by_id(ids)
-    titles = []
-    for doc in docs:
-        titles.append([normalize_word(word) for word in doc['title'].split(" ")])
+    titles = title_words([doc['title'] for doc in docs])
     vectors = title_vectors(titles)
     return docs, vectors
 
 @db
 def title_vectors(cursor, titles):
     words = list({word for title in titles for word in title})
-    cursor.execute("""select wv.word, wv.vector, wc.count / (
-                select sum(count) from word_counts
-            )::float as frequency
+    cursor.execute("select count(*) from docs")
+    num_docs = cursor.fetchone()['count']
+    cursor.execute("""select wv.word, wv.vector, wc.count
             from word_vectors wv
             join word_counts wc on wc.word = wv.word
             where wv.word = any(%s)""", (words, ))
-    word_vectors = { row['word']: (np.array(row['vector']), row['frequency']) 
+    word_vectors = { row['word']: (np.array(row['vector']), row['count']) 
             for row in cursor.fetchall() if row['vector']}
 
     vector_matrix = []
     for title in titles:
         title_vector = np.zeros(shape=(300,), dtype=float)
-        for word, count in list(Counter(title).items()):
+        for word, tf in list(Counter(title).items()):
             if word in word_vectors:
-                vector, frequency = word_vectors[word]
-                title_vector += vector * (count * frequency)
+                vector, count = word_vectors[word]
+                idf = np.log10(count / num_docs)
+                title_vector += vector * (tf*idf)
         vector_matrix.append(title_vector)
     return np.array(vector_matrix)
 
@@ -130,11 +130,11 @@ def doc_by_id(id):
 
 @db
 def vector_from_token(cursor, token):
-    v = np.zeros(shape=(300,), dtype=float)
+    clicked_vectors = np.zeros(shape=(300,), dtype=float)
     seen = set()
     if token is None:
         token = create_cookie()
-        return token, v, seen
+        return token, clicked_vectors, seen
 
     cursor.execute("""select d.id, d.title, d.url, d.time, d.comments, d.hn_user, d.score
             from clicks cl
@@ -143,12 +143,11 @@ def vector_from_token(cursor, token):
             where token = %s""", (token, ))
     docs = cursor.fetchall()
     if len(docs) == 0:
-        return token, v, seen
-    words = [normalize_word(word) for doc in docs 
-        for word in doc['title'].split(" ")]
-    v = title_vectors([words]) / len(docs)
-    seen = set([doc['id'] for doc in docs])
-    return token, v, seen
+        return token, clicked_vectors, seen
+    seen = { doc['id'] for doc in docs }
+    titles = title_words([doc['title'] for doc in docs])
+    clicked_vectors = title_vectors(titles)
+    return token, clicked_vectors, seen
 
 @db
 def create_cookie(cursor):
