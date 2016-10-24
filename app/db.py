@@ -69,8 +69,10 @@ def get_words(cursor, words):
     return cursor.fetchall()
 
 @db
-def count_words_from_titles(cursor, titles):
-    if len(titles) == 0: return
+def count_words_from_docs(cursor, docs):
+    if len(docs) == 0: return
+    titles = title_words([doc['title'] for doc in docs])
+    titles = [ list(set(title)) for title in titles ]
     words = list(set([word for title in titles for word in title]))
     s = ",".join(["(%s, 1)"]*len(words))
     cursor.execute("""insert into word_counts (word, count) values {0} on conflict 
