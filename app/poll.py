@@ -15,12 +15,16 @@ def get_doc(id):
 def poll(q):
     db.connect()
     while True:
-        top_posts = requests.get(top_stories_url).json()
-        new_posts = set(db.new_doc_ids(top_posts))
-        docs = [get_doc(id) for id in top_posts]
-        db.upsert_docs(docs)
-        db.count_words_from_docs([doc for doc in docs if doc['id'] in new_posts])
-        q.put(db.docs_and_vectors(top_posts))
-        print("\nsleeping..."+str(datetime.now()))
+        try:
+            top_posts = requests.get(top_stories_url).json()
+            new_posts = set(db.new_doc_ids(top_posts))
+            docs = [get_doc(id) for id in top_posts]
+            db.upsert_docs(docs)
+            db.count_words_from_docs([doc for doc in docs if doc['id'] in new_posts])
+            q.put(db.docs_and_vectors(top_posts))
+            print("\nsleeping..."+str(datetime.now()))
+        except Exception as e:
+            print(e)
+            pass
          
         time.sleep(5*60)
