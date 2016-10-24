@@ -110,7 +110,8 @@ def hostname(url):
     return "{}.{}".format(e.domain, e.suffix)
 
 if __name__ == "__main__":
-    q.put(db.most_recent())
     p = Process(target=poll, args=(q,))
     p.start()
+    db.connect()
+    q.put(db.most_recent())
     app.run(host="0.0.0.0")

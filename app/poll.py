@@ -13,6 +13,7 @@ def get_doc(id):
     return requests.get(doc_url(id)).json()
 
 def poll(q):
+    db.connect()
     while True:
         top_posts = requests.get(top_stories_url).json()
         new_posts = set(db.new_doc_ids(top_posts))

@@ -9,12 +9,16 @@ import numpy as np
 from functools import wraps 
 
 pg_url = parse.urlparse(os.environ["HAGG_DB"])
-pool = pg.pool.ThreadedConnectionPool(10, 200,
-    database = pg_url.path[1:],
-    user = pg_url.username,
-    password = pg_url.password,
-    host = pg_url.hostname
-)
+
+def connect():
+    global pool
+    pool = pg.pool.ThreadedConnectionPool(10, 200,
+        database = pg_url.path[1:],
+        user = pg_url.username,
+        password = pg_url.password,
+        host = pg_url.hostname
+    )
+
 
 def db(f):
     @wraps(f)
