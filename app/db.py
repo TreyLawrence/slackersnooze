@@ -164,6 +164,7 @@ def click(cursor, doc_id, token):
     cursor.execute("""insert into clicks (cookie_id, doc_id)
             select id as cookie_id, %s as doc_id
             from cookies
-            where token = %s""", (doc_id, token))
+            where token = %s
+            on conflict (doc_id, cookie_id) do nothing""", (doc_id, token))
     print(cursor.query)
     return doc_by_id(doc_id)
