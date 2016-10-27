@@ -57,9 +57,19 @@
 <h3>
 <a id="tracking-users-clicks" class="anchor" href="#tracking-users-clicks" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Tracking users' clicks</h3>
 
-<p>A user can click an article's headline or comments </p>
+<p>A user can click an article's headline link or comments link, both we can use as an indication that the user is interested in that article's topic. However, to track these clicks, I added two redirect endpoints that will first write to the database a user's click, and then redirect to either the article's link or its comments section, depending on which was clicked.</p>
 
-<h3></h3>
+<h3>
+<a id="re-sorting-top-articles" class="anchor" href="#re-sorting-top-articles" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Re-sorting top articles</h3>
+
+<p>This is the part that's fun. When a new user arrives at slackersnooze, we give them a new cookie. Since that user hasn't clicked on any articles yet, we give a default sort based on the popularity of an article, or number of points HN users have given it.</p>
+
+<p>After a user has clicked on their first article, we then re-sort based on distance between an article's vector and the combination of articles a user has clicked on. At first, I was just averaging each clicked article's vector together, but this started to break down when a user had diverse interests (ie: large variance). I was introduced to <a href="https://en.wikipedia.org/wiki/Mahalanobis_distance">Mahalanobis distance</a> by a fellow RC'er, and quickly found that scipy has an <a href="https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.spatial.distance.mahalanobis.html">implementation</a> that will magically do it for me.</p>
+
+<h3>
+<a id="deploying" class="anchor" href="#deploying" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Deploying</h3>
+
+<p>Because AWS is cheap(ish), I decided to deploy this with elastic beanstalk and docker. There's a postgres RDS instance, autoscaling group, and load balancer that all come for free, which is nice. I purchased the domain from namecheap, and used route53 to hook it up.</p>
       </section>
     </div>
 
