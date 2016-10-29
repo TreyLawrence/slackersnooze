@@ -114,4 +114,4 @@ if __name__ == "__main__":
     p.start()
     db.connect()
     q.put(db.most_recent())
-    app.run(host="0.0.0.0")
+    app.run(host="0.0.0.0", threaded=True)

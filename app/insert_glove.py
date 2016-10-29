@@ -5,7 +5,7 @@ if __name__ == '__main__':
         rows = []
         for i, line in enumerate(f):
             words = line.split(" ")
-            word = db.normalize_word(words[0])
+            word = db.title_words([words[0]])
             vector = [float(s) for s in words[1:]]
             rows.append((word, vector))
             if len(rows) == 1000:
